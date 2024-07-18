@@ -25,7 +25,6 @@ import (
 	"github.com/eniac-x-labs/tss/node/tsslib"
 	"github.com/eniac-x-labs/tss/node/tsslib/common"
 	"github.com/eniac-x-labs/tss/node/tsslib/conversion"
-	"github.com/eniac-x-labs/tss/slash"
 )
 
 func Command() *cobra.Command {
@@ -74,11 +73,10 @@ func runNode(cmd *cobra.Command) error {
 		return err
 	}
 
-	observer, err := index.NewIndexer(store, cfg.L1Url, cfg.L1ConfirmBlocks, cfg.SccContractAddress, cfg.TimedTaskInterval, l1StartBlockNumber)
+	observer, err := index.NewIndexer(store, cfg.L1Url, cfg.L1ConfirmBlocks, cfg.TimedTaskInterval, l1StartBlockNumber)
 	if err != nil {
 		return err
 	}
-	observer = observer.SetHook(slash.NewSlashingNode(store, store))
 	observer.Start()
 
 	//new tss server instance

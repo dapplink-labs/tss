@@ -4,8 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -17,17 +15,11 @@ type Indexer struct {
 	l1Cli              *ethclient.Client
 	l1ConfirmBlocks    int
 	l1StartBlockNumber uint64
-	sccContractAddr    common.Address
-	hook               Hook
 	taskInterval       time.Duration
 	stopChan           chan struct{}
 }
 
-type Hook interface {
-	AfterStateBatchIndexed([32]byte) error
-}
-
-func NewIndexer(store IndexerStore, l1url string, l1ConfirmBlocks int, sccContractAddr string, taskInterval string, l1StartBlockNumber uint64) (Indexer, error) {
+func NewIndexer(store IndexerStore, l1url string, l1ConfirmBlocks int, taskInterval string, l1StartBlockNumber uint64) (Indexer, error) {
 	taskIntervalDur, err := time.ParseDuration(taskInterval)
 	if err != nil {
 		return Indexer{}, nil
@@ -36,21 +28,14 @@ func NewIndexer(store IndexerStore, l1url string, l1ConfirmBlocks int, sccContra
 	if err != nil {
 		return Indexer{}, err
 	}
-	address := common.HexToAddress(sccContractAddr)
 	return Indexer{
 		store:              store,
 		l1Cli:              l1Cli,
 		l1ConfirmBlocks:    l1ConfirmBlocks,
 		l1StartBlockNumber: l1StartBlockNumber,
-		sccContractAddr:    address,
 		taskInterval:       taskIntervalDur,
 		stopChan:           make(chan struct{}),
 	}, nil
-}
-
-func (o Indexer) SetHook(hook Hook) Indexer {
-	o.hook = hook
-	return o
 }
 
 func (o Indexer) Start() {
@@ -89,28 +74,6 @@ func (o Indexer) ObserveStateBatchAppended(scannedHeight uint64) {
 				log.Info("Waiting for L1 block produced", "latest confirmed height", latestConfirmedBlockHeight)
 				return
 			}
-			events, err := FilterStateBatchAppendedEvent(o.l1Cli, int64(startHeight), int64(endHeight), o.sccContractAddr)
-			if err != nil {
-				log.Error("failed to scan stateBatchAppended event", err)
-				return
-			}
-
-			if len(events) != 0 {
-				for _, event := range events {
-					for stateBatchRoot, batchIndex := range event {
-						retry := true
-						var found bool
-						for retry {
-							retry, found = indexBatch(o.store, stateBatchRoot, batchIndex)
-						}
-						if found {
-							if err = o.hook.AfterStateBatchIndexed(stateBatchRoot); err != nil {
-								log.Error("errors occur when executed hook AfterStateBatchIndexed", "err", err)
-							}
-						}
-					}
-				}
-			}
 
 			scannedHeight = endHeight
 			retry := true
@@ -133,25 +96,4 @@ func (o Indexer) ObserveStateBatchAppended(scannedHeight uint64) {
 		}
 
 	}
-}
-
-func indexBatch(store StateBatchStore, stateBatchRoot [32]byte, batchIndex uint64) (retry bool, found bool) {
-	found, stateBatch := store.GetStateBatch(stateBatchRoot)
-	if !found {
-		log.Error("can not find the state batch with root, skip this batch", "root", hexutil.Encode(stateBatchRoot[:]))
-		return false, found
-	}
-	stateBatch.BatchIndex = batchIndex
-	if err := store.SetStateBatch(stateBatch); err != nil { // update stateBatch with index
-		log.Error("failed to SetStateBatch with index", err)
-		time.Sleep(2 * time.Second)
-		return true, found
-	}
-
-	if err := store.IndexStateBatch(batchIndex, stateBatchRoot); err != nil {
-		log.Error("failed to IndexStateBatch", err)
-		time.Sleep(2 * time.Second)
-		return true, found
-	}
-	return false, found
 }

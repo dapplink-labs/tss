@@ -20,7 +20,6 @@ import (
 	"github.com/eniac-x-labs/tss/manager/l1chain"
 	"github.com/eniac-x-labs/tss/manager/router"
 	"github.com/eniac-x-labs/tss/manager/store"
-	"github.com/eniac-x-labs/tss/slash"
 	"github.com/eniac-x-labs/tss/ws/server"
 )
 
@@ -66,11 +65,10 @@ func run(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-	observer, err := index.NewIndexer(managerStore, config.L1Url, config.L1ConfirmBlocks, config.SccContractAddress, config.TimedTaskInterval, l1StartBlockNumber)
+	observer, err := index.NewIndexer(managerStore, config.L1Url, config.L1ConfirmBlocks, config.TimedTaskInterval, l1StartBlockNumber)
 	if err != nil {
 		return err
 	}
-	observer = observer.SetHook(slash.NewSlashing(managerStore, managerStore, config.MissSignedNumber))
 	observer.Start()
 
 	manager, err := NewManager(wsServer, queryService, managerStore, config)

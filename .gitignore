@@ -1,0 +1,10 @@
+# Binaries for programs and plugins
+tss
+
+# Configuration file
+*.toml
+.env
+
+#IDE
+.idea
+

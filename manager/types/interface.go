@@ -1,11 +1,8 @@
 package types
 
 import (
-	"github.com/ethereum/go-ethereum/common"
-
 	tss "github.com/eniac-x-labs/tss/common"
 	"github.com/eniac-x-labs/tss/index"
-	"github.com/eniac-x-labs/tss/slash"
 )
 
 type SignService interface {
@@ -17,7 +14,6 @@ type SignService interface {
 type AdminService interface {
 	ResetScanHeight(height uint64) error
 	GetScannedHeight() (uint64, error)
-	RemoveSlashingInfo(common.Address, uint64)
 }
 
 type TssQueryService interface {
@@ -35,5 +31,4 @@ type ManagerStore interface {
 	CPKStore
 	index.StateBatchStore
 	index.ScanHeightStore
-	slash.SlashingStore
 }

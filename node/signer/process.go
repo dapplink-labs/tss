@@ -16,7 +16,6 @@ import (
 	l2ethclient "github.com/ethereum/go-ethereum/ethclient"
 
 	"github.com/eniac-x-labs/tss/bindings/tgm"
-	"github.com/eniac-x-labs/tss/bindings/tsh"
 	"github.com/eniac-x-labs/tss/common"
 	"github.com/eniac-x-labs/tss/manager/l1chain"
 	"github.com/eniac-x-labs/tss/node/tsslib"
@@ -58,7 +57,6 @@ type Processor struct {
 	tssGroupManagerAddress    string
 	tssStakingSlashingAddress string
 	taskInterval              time.Duration
-	tssStakingSlashingCaller  *tsh.TssStakingSlashingCaller
 	tssGroupManagerCaller     *tgm.TssGroupManagerCaller
 	tssQueryService           *l1chain.QueryService
 	l1ConfirmBlocks           int
@@ -94,16 +92,12 @@ func NewProcessor(cfg common.Configuration, contx context.Context, tssInstance t
 		return nil, err
 	}
 	l2Client, err := DialL2EthClientWithTimeout(ctx, cfg.Node.L2EthRpc, cfg.Node.DisableHTTP2)
-	tssStakingSlashingCaller, err := tsh.NewTssStakingSlashingCaller(ethc.HexToAddress(cfg.TssStakingSlashContractAddress), l1Cli)
-	if err != nil {
-		return nil, err
-	}
 	tssGroupManagerCaller, err := tgm.NewTssGroupManagerCaller(ethc.HexToAddress(cfg.TssGroupContractAddress), l1Cli)
 	if err != nil {
 		return nil, err
 	}
 
-	queryService, err := l1chain.NewQueryService(cfg.L1Url, cfg.TssGroupContractAddress, cfg.L1ConfirmBlocks, nodeStore)
+	queryService, err := l1chain.NewQueryService(cfg.L1Url, cfg.TssGroupContractAddress, cfg.L1ConfirmBlocks)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +136,6 @@ func NewProcessor(cfg common.Configuration, contx context.Context, tssInstance t
 		tssGroupManagerAddress:    cfg.TssGroupContractAddress,
 		tssStakingSlashingAddress: cfg.TssStakingSlashContractAddress,
 		taskInterval:              taskIntervalDur,
-		tssStakingSlashingCaller:  tssStakingSlashingCaller,
 		tssGroupManagerCaller:     tssGroupManagerCaller,
 		tssQueryService:           queryService,
 		l1ConfirmBlocks:           cfg.L1ConfirmBlocks,
@@ -174,11 +167,8 @@ func (p *Processor) Stop() {
 func (p *Processor) run() {
 	go p.ProcessMessage()
 	go p.Verify()
-	go p.VerifySlash()
 	go p.Sign()
-	go p.SignSlash()
 	go p.Keygen()
-	go p.deleteSlashing()
 	go p.SignRollBack()
 	go p.VerifyRollBack()
 	go p.ObserveTssGroup()

@@ -41,7 +41,6 @@ func (t *TssServer) generateSignature(onlinePeers []peer.ID, req keysign2.Reques
 		return keysign2.Response{
 			Status:     common.Fail,
 			FailReason: err.Error(),
-			Culprits:   nil,
 		}, nil
 	}
 	signatureData, err := keysignInstance.SignMessage(req.Message, localStateItem, signers)
@@ -50,11 +49,9 @@ func (t *TssServer) generateSignature(onlinePeers []peer.ID, req keysign2.Reques
 
 	if err != nil {
 		t.logger.Error().Err(err).Msg("err in keysign")
-		culprits := keysignInstance.GetTssCommonStruct().GetAbnormalMgr().TssCulpritsNodes()
 		return keysign2.Response{
 			Status:     common.Fail,
 			FailReason: abnormal.SignatureError,
-			Culprits:   culprits,
 		}, nil
 	}
 
@@ -62,7 +59,6 @@ func (t *TssServer) generateSignature(onlinePeers []peer.ID, req keysign2.Reques
 		signatureData,
 		common.Success,
 		"",
-		nil,
 	), nil
 
 }

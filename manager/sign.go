@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -44,13 +43,13 @@ func (c *Counter) satisfied(minNumber int) []string {
 	return ret
 }
 
-func (m *Manager) sign(ctx types.Context, request interface{}, digestBz []byte, method tss.Method) (tss.SignResponse, []string, error) {
+func (m *Manager) sign(ctx types.Context, request interface{}, digestBz []byte, method tss.Method) (tss.SignResponse, error) {
 	respChan := make(chan server.ResponseMsg)
 	stopChan := make(chan struct{})
 
 	if err := m.wsServer.RegisterResChannel(ctx.RequestId(), respChan, stopChan); err != nil {
 		log.Error("failed to register response channel at signing step", err)
-		return tss.SignResponse{}, nil, err
+		return tss.SignResponse{}, err
 	}
 	log.Info("Registered ResChannel with requestID", "requestID", ctx.RequestId())
 
@@ -109,7 +108,6 @@ func (m *Manager) sign(ctx types.Context, request interface{}, digestBz []byte, 
 							log.Error("failed to unmarshal sign response", err)
 							return
 						}
-
 						poolPubKeyBz, _ := hex.DecodeString(ctx.TssInfos().ClusterPubKey)
 						if len(signResponse.Signature) < 64 {
 							log.Error(fmt.Sprintf("invalid signature, expected length is no less than 64, actual length is %d", len(signResponse.Signature)))
@@ -140,12 +138,7 @@ func (m *Manager) sign(ctx types.Context, request interface{}, digestBz []byte, 
 	m.sendToNodes(ctx, request, method, errSendChan)
 	wg.Wait()
 
-	var culprits []string
-	if validSignResponse == nil {
-		culprits = counter.satisfied(ctx.TssInfos().Threshold + 1)
-		return tss.SignResponse{}, culprits, errors.New("failed to generate signature")
-	}
-	return *validSignResponse, culprits, nil
+	return *validSignResponse, nil
 }
 
 func (m *Manager) sendToNodes(ctx types.Context, request interface{}, method tss.Method, errSendChan chan struct{}) {

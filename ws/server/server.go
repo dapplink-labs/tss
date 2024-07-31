@@ -49,7 +49,6 @@ func NewWSServer(localAddr string, queryService types.TssQueryService) (*Websock
 	wsServer.Handler = mux
 
 	wsServer.Listener, err = rpcserver.Listen(localAddr, wsServer.Config)
-	fmt.Println(err)
 	if err != nil {
 		return nil, err
 	}

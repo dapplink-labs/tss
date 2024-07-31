@@ -39,9 +39,8 @@ func TestSign(t *testing.T) {
 		return nil
 	}
 	manager, request := setup(afterMsgSent, nil)
-	signResp, culprits, err := manager.sign(ctx, request, digest, tss.SignStateBatch)
+	signResp, err := manager.sign(ctx, request, digest, tss.SignStateBatch)
 	require.NoError(t, err)
-	require.Nil(t, culprits)
 	require.EqualValues(t, signature, signResp.Signature)
 
 	afterMsgSent = func(request server.RequestMsg, respCh chan server.ResponseMsg) error {
@@ -58,9 +57,8 @@ func TestSign(t *testing.T) {
 		return nil
 	}
 	manager, request = setup(afterMsgSent, nil)
-	signResp, culprits, err = manager.sign(ctx, request, digest, tss.SignStateBatch)
+	signResp, err = manager.sign(ctx, request, digest, tss.SignStateBatch)
 	require.NoError(t, err)
-	require.Nil(t, culprits)
 	require.EqualValues(t, signature, signResp.Signature)
 }
 
@@ -81,9 +79,8 @@ func TestErrorSend(t *testing.T) {
 		return nil
 	}
 	manager, request := setup(afterMsgSent, nil)
-	signResp, culprits, err := manager.sign(ctx, request, digest, tss.SignStateBatch)
+	signResp, err := manager.sign(ctx, request, digest, tss.SignStateBatch)
 	require.Nil(t, signResp.Signature)
-	require.Nil(t, culprits)
 	require.NotNil(t, err)
 	require.ErrorContains(t, err, "failed to generate signature")
 }
@@ -112,9 +109,8 @@ func TestWrongSignature(t *testing.T) {
 		return nil
 	}
 	manager, request := setup(afterMsgSent, nil)
-	signResp, culprits, err := manager.sign(ctx, request, digest, tss.SignStateBatch)
+	signResp, err := manager.sign(ctx, request, digest, tss.SignStateBatch)
 	require.Nil(t, signResp.Signature)
-	require.Nil(t, culprits)
 	require.NotNil(t, err)
 	require.ErrorContains(t, err, "failed to generate signature")
 }
@@ -131,9 +127,8 @@ func TestSignTimeout(t *testing.T) {
 	}
 	manager, request := setup(afterMsgSent, nil)
 	before := time.Now()
-	signResp, culprits, err := manager.sign(ctx, request, nil, tss.SignStateBatch)
+	signResp, err := manager.sign(ctx, request, nil, tss.SignStateBatch)
 	require.Nil(t, signResp.Signature)
-	require.Nil(t, culprits)
 	require.NotNil(t, err)
 	require.ErrorContains(t, err, "failed to generate signature")
 	cost := time.Now().Sub(before)
@@ -160,9 +155,8 @@ func TestSignTimeout(t *testing.T) {
 		ClusterPubKey: publicKey,
 	})
 	before = time.Now()
-	signResp, culprits, err = manager.sign(ctx, request, digest, tss.SignStateBatch)
+	signResp, err = manager.sign(ctx, request, digest, tss.SignStateBatch)
 	require.NoError(t, err)
-	require.Nil(t, culprits)
 	require.EqualValues(t, signature, signResp.Signature)
 	cost = time.Now().Sub(before)
 	require.True(t, cost.Seconds()-manager.signTimeout.Seconds() < 0)
@@ -193,11 +187,10 @@ func TestCulprits(t *testing.T) {
 		return nil
 	}
 	manager, request := setup(afterMsgSent, nil)
-	signResp, culprits, err := manager.sign(ctx, request, nil, tss.SignStateBatch)
+	signResp, err := manager.sign(ctx, request, nil, tss.SignStateBatch)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "failed to generate signature")
 	require.Nil(t, signResp.Signature)
-	require.Nil(t, culprits)
 
 	ctx = types.NewContext().
 		WithAvailableNodes([]string{"a", "b", "c", "d"}).
@@ -206,64 +199,10 @@ func TestCulprits(t *testing.T) {
 			Threshold: 2,
 		})
 
-	signResp, culprits, err = manager.sign(ctx, request, nil, tss.SignStateBatch)
+	signResp, err = manager.sign(ctx, request, nil, tss.SignStateBatch)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "failed to generate signature")
 	require.Nil(t, signResp.Signature)
-	require.NotNil(t, culprits)
-	require.EqualValues(t, "a", culprits[0])
-}
-
-func TestSignSlash(t *testing.T) {
-	digest, signature, publicKey := mockSign()
-	ctx := types.NewContext().
-		WithAvailableNodes([]string{"a", "b", "c", "d"}).
-		WithApprovers([]string{"a", "b", "c", "d"}).
-		WithTssInfo(&types.TssCommitteeInfo{
-			Threshold:     3,
-			ClusterPubKey: publicKey,
-		})
-
-	afterMsgSent := func(request server.RequestMsg, respCh chan server.ResponseMsg) error {
-		signResp := tss.SignResponse{
-			Signature: signature,
-		}
-		rpcResp := tmtypes.NewRPCSuccessResponse(request.RpcRequest.ID, signResp)
-		respCh <- server.ResponseMsg{
-			RpcResponse: rpcResp,
-			SourceNode:  request.TargetNode,
-		}
-		return nil
-	}
-	manager, request := setup(afterMsgSent, nil)
-	signResp, culprits, err := manager.sign(ctx, request, digest, tss.SignSlash)
-	require.NoError(t, err)
-	require.Nil(t, culprits)
-	require.EqualValues(t, signature, signResp.Signature)
-
-	afterMsgSent = func(request server.RequestMsg, respCh chan server.ResponseMsg) error {
-		if request.TargetNode == "c" {
-			return nil
-		}
-
-		signResp := tss.SignResponse{
-			Signature: signature,
-		}
-		rpcResp := tmtypes.NewRPCSuccessResponse(request.RpcRequest.ID, signResp)
-		respCh <- server.ResponseMsg{
-			RpcResponse: rpcResp,
-			SourceNode:  request.TargetNode,
-		}
-		return nil
-	}
-	manager, request = setup(afterMsgSent, nil)
-	before := time.Now()
-	signResp, culprits, err = manager.sign(ctx, request, digest, tss.SignSlash)
-	require.NoError(t, err)
-	require.Nil(t, culprits)
-	require.EqualValues(t, signature, signResp.Signature)
-	cost := time.Now().Sub(before)
-	require.True(t, cost.Seconds()-manager.signTimeout.Seconds() >= 0)
 }
 
 func mockSign() (digest []byte, signature []byte, compressedPublicKey string) {

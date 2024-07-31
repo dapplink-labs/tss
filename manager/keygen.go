@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/influxdata/influxdb/pkg/slices"
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	tmtypes "github.com/tendermint/tendermint/rpc/jsonrpc/types"
 
@@ -35,15 +34,6 @@ func (m *Manager) observeElection() {
 
 				//tssMembers, threshold, electionId := getInactiveMembers()
 				if len(tssInfo.TssMembers) > 0 {
-					culprits := m.store.GetCulprits()
-					if len(culprits) > 0 {
-						for _, tm := range tssInfo.TssMembers {
-							if slices.Exists(culprits, tm) {
-								log.Error("Reject to keygen, culprit is involved in the elected members", "culprit", tm)
-								return
-							}
-						}
-					}
 
 					// the CPK has not been confirmed in the latest election
 					// start to generate CPK

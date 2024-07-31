@@ -98,29 +98,6 @@ func (registry *Registry) GetHeightHandler() gin.HandlerFunc {
 	}
 }
 
-func (registry *Registry) DeleteSlashHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		addressStr := c.Query("address")
-		if len(addressStr) == 0 {
-			c.String(http.StatusBadRequest, "empty address")
-			return
-		}
-		batchIndexStr := c.Query("index")
-		if len(batchIndexStr) == 0 {
-			c.String(http.StatusBadRequest, "empty index")
-			return
-		}
-		address := common.HexToAddress(addressStr)
-		index, err := strconv.Atoi(batchIndexStr)
-		if err != nil {
-			c.String(http.StatusBadRequest, "wrong format index")
-			return
-		}
-		registry.adminService.RemoveSlashingInfo(address, uint64(index))
-		c.String(http.StatusOK, "success")
-	}
-}
-
 func (registry *Registry) PrometheusHandler() gin.HandlerFunc {
 	h := promhttp.InstrumentMetricHandler(
 		prometheus.DefaultRegisterer, promhttp.HandlerFor(

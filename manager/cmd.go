@@ -54,7 +54,7 @@ func run(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-	queryService, err := l1chain.NewQueryService(config.L1Url, config.TssGroupContractAddress, config.L1ConfirmBlocks, managerStore)
+	queryService, err := l1chain.NewQueryService(config.L1Url, config.TssGroupContractAddress, config.L1ConfirmBlocks)
 	if err != nil {
 		return err
 	}

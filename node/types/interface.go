@@ -2,7 +2,6 @@ package types
 
 import (
 	"github.com/eniac-x-labs/tss/index"
-	"github.com/eniac-x-labs/tss/slash"
 )
 
 type TssMemberStore interface {
@@ -15,6 +14,5 @@ type TssMemberStore interface {
 type NodeStore interface {
 	index.StateBatchStore
 	index.ScanHeightStore
-	slash.SlashingStore
 	TssMemberStore
 }

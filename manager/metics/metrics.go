@@ -11,7 +11,6 @@ type Metrics struct {
 	OnlineNodesCount   metrics.Gauge
 	SignCount          metrics.Gauge
 	RollbackCount      metrics.Gauge
-	SlashCount         metrics.Gauge
 	ActiveMembersCount metrics.Gauge
 	ApproveNumber      metrics.Gauge
 }
@@ -44,14 +43,6 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 			Name:      "approve_counter",
 			Help:      "approve number ",
 		}, labels).With(labelsAndValues...)
-
-	var slash = prometheus.NewGaugeFrom(
-		stdprometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: "slash",
-			Name:      "slash_counter",
-			Help:      "remark slash behavior",
-		}, labels).With(labelsAndValues...)
 	var online = prometheus.NewGaugeFrom(
 		stdprometheus.GaugeOpts{
 			Namespace: namespace,
@@ -70,7 +61,6 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 	return &Metrics{
 		OnlineNodesCount:   online,
 		SignCount:          sign,
-		SlashCount:         slash,
 		ActiveMembersCount: active,
 		RollbackCount:      rollback,
 		ApproveNumber:      approve,

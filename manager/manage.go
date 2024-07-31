@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"math/rand"
 	"strings"
@@ -22,26 +21,22 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/eniac-x-labs/tss/bindings/tgm"
-	"github.com/eniac-x-labs/tss/bindings/tsh"
 	tss "github.com/eniac-x-labs/tss/common"
 	"github.com/eniac-x-labs/tss/index"
 	"github.com/eniac-x-labs/tss/manager/metics"
 	"github.com/eniac-x-labs/tss/manager/types"
-	"github.com/eniac-x-labs/tss/slash"
 	"github.com/eniac-x-labs/tss/ws/server"
 )
 
 type Manager struct {
-	wsServer                  server.IWebsocketManager
-	tssQueryService           types.TssQueryService
-	store                     types.ManagerStore
-	l1Cli                     *ethclient.Client
-	privateKey                *ecdsa.PrivateKey
-	chainId                   *big.Int
-	tssStakingSlashingAddress string
-	tssStakingSlashingCaller  *tsh.TssStakingSlashingCaller
-	tssGroupManagerCaller     *tgm.TssGroupManagerCaller
-	l1ConfirmBlocks           int
+	wsServer              server.IWebsocketManager
+	tssQueryService       types.TssQueryService
+	store                 types.ManagerStore
+	l1Cli                 *ethclient.Client
+	privateKey            *ecdsa.PrivateKey
+	chainId               *big.Int
+	tssGroupManagerCaller *tgm.TssGroupManagerCaller
+	l1ConfirmBlocks       int
 
 	taskInterval          time.Duration
 	confirmReceiptTimeout time.Duration
@@ -90,10 +85,7 @@ func NewManager(wsServer server.IWebsocketManager,
 	if err != nil {
 		return nil, err
 	}
-	tssStakingSlashingCaller, err := tsh.NewTssStakingSlashingCaller(common.HexToAddress(config.TssStakingSlashContractAddress), l1Cli)
-	if err != nil {
-		return nil, err
-	}
+
 	tssGroupManagerCaller, err := tgm.NewTssGroupManagerCaller(common.HexToAddress(config.TssGroupContractAddress), l1Cli)
 	if err != nil {
 		return nil, err
@@ -109,16 +101,15 @@ func NewManager(wsServer server.IWebsocketManager,
 	}
 
 	return &Manager{
-		wsServer:                  wsServer,
-		tssQueryService:           tssQueryService,
-		store:                     store,
-		l1Cli:                     l1Cli,
-		l1ConfirmBlocks:           config.L1ConfirmBlocks,
-		tssStakingSlashingAddress: config.TssStakingSlashContractAddress,
-		tssStakingSlashingCaller:  tssStakingSlashingCaller,
-		tssGroupManagerCaller:     tssGroupManagerCaller,
-		privateKey:                privKey,
-		chainId:                   chainId,
+		wsServer:        wsServer,
+		tssQueryService: tssQueryService,
+		store:           store,
+		l1Cli:           l1Cli,
+		l1ConfirmBlocks: config.L1ConfirmBlocks,
+
+		tssGroupManagerCaller: tssGroupManagerCaller,
+		privateKey:            privKey,
+		chainId:               chainId,
 
 		taskInterval:          taskIntervalDur,
 		confirmReceiptTimeout: receiptConfirmTimeoutDur,
@@ -138,7 +129,6 @@ func NewManager(wsServer server.IWebsocketManager,
 func (m *Manager) Start() {
 	log.Info("manager is starting......")
 	go m.observeElection()
-	go m.slashing()
 }
 
 func (m *Manager) Stop() {
@@ -208,7 +198,6 @@ func (m *Manager) SignStateBatch(request tss.SignStateRequest) ([]byte, error) {
 		return nil, err
 	}
 	var resp tss.SignResponse
-	var culprits []string
 	var rollback bool
 	var signErr error
 
@@ -227,28 +216,14 @@ func (m *Manager) SignStateBatch(request tss.SignStateRequest) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		resp, culprits, signErr = m.sign(ctx, rollBackRequest, rollBackBz, tss.SignRollBack)
+		resp, signErr = m.sign(ctx, rollBackRequest, rollBackBz, tss.SignRollBack)
 		m.metics.RollbackCount.Set(1)
 	} else {
 		request.ElectionId = tssInfo.ElectionId
-		resp, culprits, signErr = m.sign(ctx, request, digestBz, tss.SignStateBatch)
+		resp, signErr = m.sign(ctx, request, digestBz, tss.SignStateBatch)
 	}
 
 	if signErr != nil {
-		for _, culprit := range culprits {
-			addr, err := tss.NodeToAddress(culprit)
-			if err != nil {
-				log.Error("failed to convert node to address", "public key", culprit, "err", err)
-				continue
-			}
-			m.store.SetSlashingInfo(slash.SlashingInfo{
-				Address:    addr,
-				ElectionId: tssInfo.ElectionId,
-				BatchIndex: math.MaxUint64, // not real, just for identifying the specific slashing info.
-				SlashType:  tss.SlashTypeCulprit,
-			})
-		}
-		m.store.AddCulprits(culprits)
 		m.metics.SignCount.Add(1)
 		return nil, signErr
 	}
@@ -317,7 +292,7 @@ func (m *Manager) SignRollBack(request tss.SignStateRequest) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, _, err = m.sign(ctx, rollBackRequest, rollBackBz, tss.SignRollBack)
+	resp, err = m.sign(ctx, rollBackRequest, rollBackBz, tss.SignRollBack)
 
 	if err != nil {
 		return nil, err

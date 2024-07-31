@@ -2,12 +2,10 @@ package signer
 
 import (
 	"encoding/json"
-	"math/big"
-	"strings"
-
 	tsscommon "github.com/eniac-x-labs/tss/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	tdtypes "github.com/tendermint/tendermint/rpc/jsonrpc/types"
+	"math/big"
 )
 
 func (p *Processor) SignRollBack() {
@@ -79,18 +77,13 @@ func (p *Processor) SignRollBack() {
 						Signature: signByte,
 					}
 				} else {
-					data, culprits, err := p.handleSign(nodeSignRequest, hashTx, logger)
+					data, err := p.handleSign(nodeSignRequest, hashTx, logger)
 
 					if err != nil {
 						logger.Error().Msgf("roll back %s sign failed ", requestBody.StartBlock)
 						var errorRes tdtypes.RPCResponse
-						if len(culprits) > 0 {
-							respData := strings.Join(culprits, ",")
-							errorRes = tdtypes.NewRPCErrorResponse(req.ID, 100, err.Error(), respData)
-							p.nodeStore.AddCulprits(culprits)
-						} else {
-							errorRes = tdtypes.NewRPCErrorResponse(req.ID, 201, "sign failed", err.Error())
-						}
+						errorRes = tdtypes.NewRPCErrorResponse(req.ID, 201, "sign failed", err.Error())
+
 						er := p.wsClient.SendMsg(errorRes)
 						if er != nil {
 							logger.Err(er).Msg("failed to send msg to tss manager")

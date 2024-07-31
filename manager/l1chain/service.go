@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"math/big"
 
-	"github.com/influxdata/influxdb/pkg/slices"
 	"github.com/pkg/errors"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -17,17 +16,15 @@ import (
 	"github.com/eniac-x-labs/tss/bindings/tgm"
 	tss "github.com/eniac-x-labs/tss/common"
 	"github.com/eniac-x-labs/tss/manager/types"
-	"github.com/eniac-x-labs/tss/slash"
 )
 
 type QueryService struct {
 	ethClient             *ethclient.Client
 	tssGroupManagerCaller *tgm.TssGroupManagerCaller
 	confirmBlocks         uint64
-	slashingStore         slash.SlashingStore
 }
 
-func NewQueryService(url, tssGroupContractAddress string, confirmBlocks int, store slash.SlashingStore) (*QueryService, error) {
+func NewQueryService(url, tssGroupContractAddress string, confirmBlocks int) (*QueryService, error) {
 	cli, err := ethclient.Dial(url)
 	if err != nil {
 		return nil, err
@@ -40,7 +37,6 @@ func NewQueryService(url, tssGroupContractAddress string, confirmBlocks int, sto
 		ethClient:             cli,
 		tssGroupManagerCaller: tssGroupManagerCaller,
 		confirmBlocks:         uint64(confirmBlocks),
-		slashingStore:         store,
 	}, nil
 }
 
@@ -74,8 +70,6 @@ func (q *QueryService) QueryActiveInfo() (*types.TssCommitteeInfo, error) {
 		log.Info("found jailed members from L1", "jailed number", len(activeTssMembers)-len(unjailMembers))
 		hasJailMembers = true
 	}
-	// need to exclude the culprits
-	culprits := q.slashingStore.GetCulprits()
 	tssMembers := make([]string, 0)
 
 	for _, m := range activeTssMembers {
@@ -86,9 +80,6 @@ func (q *QueryService) QueryActiveInfo() (*types.TssCommitteeInfo, error) {
 		}
 		compressed := crypto.CompressPubkey(unmarshalled)
 		hexEncoded := hex.EncodeToString(compressed)
-		if slices.ExistsIgnoreCase(culprits, hexEncoded) { // exclude culprits
-			continue
-		}
 
 		if hasJailMembers {
 			addr := crypto.PubkeyToAddress(*unmarshalled)

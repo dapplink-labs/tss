@@ -169,7 +169,5 @@ func (p *Processor) run() {
 	go p.Verify()
 	go p.Sign()
 	go p.Keygen()
-	go p.SignRollBack()
-	go p.VerifyRollBack()
 	go p.ObserveTssGroup()
 }

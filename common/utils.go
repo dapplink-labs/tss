@@ -25,7 +25,7 @@ var (
 	typUint256              abi.Type
 	typSlashMsg             abi.Type
 	typBytes                abi.Type
-	stateBatchArguments     abi.Arguments
+	MessageHashArguments    abi.Arguments
 	slashMsgArguments       abi.Arguments
 	groupPublicKeyArguments abi.Arguments
 	slashArguments          abi.Arguments
@@ -43,7 +43,7 @@ func init() {
 	typByte32Array, _ = abi.NewType("bytes32[]", "bytes32[]", nil)
 	typUint256, _ = abi.NewType("uint256", "uint256", nil)
 	typBytes, _ = abi.NewType("bytes", "bytes", nil)
-	stateBatchArguments = abi.Arguments{
+	MessageHashArguments = abi.Arguments{
 		{
 			Type: typByte32Array,
 		}, {
@@ -96,14 +96,6 @@ func NodeToAddress(publicKey string) (common.Address, error) {
 	pk, err := btcec.ParsePubKey(pubKeyBz, btcec.S256())
 	address := crypto.PubkeyToAddress(*pk.ToECDSA())
 	return address, nil
-}
-
-func StateBatchHash(stateRoots [][32]byte, offsetStartsAtIndex *big.Int) ([]byte, error) {
-	abiEncodedRaw, err := stateBatchArguments.Pack(stateRoots, offsetStartsAtIndex)
-	if err != nil {
-		return nil, err
-	}
-	return crypto.Keccak256Hash(abiEncodedRaw).Bytes(), nil
 }
 
 func SlashMsgBytes(batchIndex uint64, jailNode common.Address, tssNodes []common.Address, slashType byte) ([]byte, error) {

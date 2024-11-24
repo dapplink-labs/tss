@@ -6,8 +6,7 @@ import (
 )
 
 type SignService interface {
-	SignStateBatch(request tss.SignStateRequest) ([]byte, error)
-	SignRollBack(request tss.SignStateRequest) ([]byte, error)
+	TransactionSign(request tss.TransactionSignRequest) ([]byte, error)
 	SignTxBatch() error
 }
 
@@ -29,6 +28,6 @@ type CPKStore interface {
 
 type ManagerStore interface {
 	CPKStore
-	index.StateBatchStore
+	index.MessageHashStore
 	index.ScanHeightStore
 }

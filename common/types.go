@@ -1,7 +1,6 @@
 package common
 
 import (
-	"encoding/hex"
 	"fmt"
 	"math/big"
 
@@ -11,15 +10,12 @@ import (
 type Method string
 
 const (
-	AskStateBatch  Method = "askStateBatch"
-	SignStateBatch Method = "signStateBatch"
-	AskSlash       Method = "askSlash"
-	SignSlash      Method = "signSlash"
-	SignRollBack   Method = "signRollBack"
-	AskRollBack    Method = "askRollBack"
-
-	SlashTypeLiveness byte = 0
-	SlashTypeCulprit  byte = 1
+	AskMessageHash  Method = "askMessageHash"
+	TransactionSign Method = "TransactionSign"
+	AskSlash        Method = "askSlash"
+	SignSlash       Method = "signSlash"
+	SignRollBack    Method = "signRollBack"
+	AskRollBack     Method = "askRollBack"
 
 	CulpritErrorCode = 100
 )
@@ -28,21 +24,13 @@ func (m Method) String() string {
 	return string(m)
 }
 
-type SignStateRequest struct {
-	Type                uint64     `json:"type"`
-	StartBlock          *big.Int   `json:"start_block"`
-	OffsetStartsAtIndex *big.Int   `json:"offset_starts_at_index"`
-	Challenge           string     `json:"challenge"`
-	StateRoots          [][32]byte `json:"state_roots"`
-	ElectionId          uint64     `json:"election_id"`
+type TransactionSignRequest struct {
+	MessageHash string `json:"message_hash"`
+	ElectionId  uint64 `json:"election_id"`
 }
 
-func (ssr SignStateRequest) String() string {
-	var srs string
-	for _, sr := range ssr.StateRoots {
-		srs = srs + hex.EncodeToString(sr[:]) + " "
-	}
-	return fmt.Sprintf("start_block: %v, offset_starts_at_index: %v, election_id: %d, state_roots: %s", ssr.StartBlock, ssr.OffsetStartsAtIndex, ssr.ElectionId, srs)
+func (tsr TransactionSignRequest) String() string {
+	return fmt.Sprintf("message_hash: %v, election_id: %d", tsr.MessageHash, tsr.ElectionId)
 }
 
 type SlashRequest struct {
@@ -82,16 +70,12 @@ type KeygenResponse struct {
 }
 
 type SignatureData struct {
-	// Ethereum-style recovery byte; only the first byte is relevant
 	SignatureRecovery []byte `json:"signature_recovery,omitempty"`
-	// Signature components R, S
-	R []byte `json:"r,omitempty"`
-	S []byte `json:"s,omitempty"`
-	// M represents the original message digest that was signed M
-	M []byte `json:"m,omitempty"`
+	R                 []byte `json:"r,omitempty"`
+	S                 []byte `json:"s,omitempty"`
+	M                 []byte `json:"m,omitempty"`
 }
 
 type BatchSubmitterResponse struct {
 	Signature []byte `json:"signature"`
-	RollBack  bool   `json:"roll_back"`
 }

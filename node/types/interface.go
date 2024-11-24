@@ -12,7 +12,7 @@ type TssMemberStore interface {
 }
 
 type NodeStore interface {
-	index.StateBatchStore
+	index.MessageHashStore
 	index.ScanHeightStore
 	TssMemberStore
 }

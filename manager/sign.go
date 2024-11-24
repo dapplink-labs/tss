@@ -138,6 +138,10 @@ func (m *Manager) sign(ctx types.Context, request interface{}, digestBz []byte, 
 	m.sendToNodes(ctx, request, method, errSendChan)
 	wg.Wait()
 
+	if validSignResponse == nil {
+		return tss.SignResponse{}, nil
+	}
+
 	return *validSignResponse, nil
 }
 

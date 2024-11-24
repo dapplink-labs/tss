@@ -35,7 +35,7 @@ type Context struct {
 	approvers      []string
 	unApprovers    []string
 	electionId     uint64
-	stateBatchRoot [32]byte
+	MessageHash    string
 }
 
 func NewContext() Context {
@@ -64,8 +64,8 @@ func (c Context) UnApprovers() []string {
 func (c Context) ElectionId() uint64 {
 	return c.electionId
 }
-func (c Context) StateBatchRoot() [32]byte {
-	return c.stateBatchRoot
+func (c Context) MessageHas() string {
+	return c.MessageHash
 }
 
 func (c Context) WithRequestId(requestId string) Context {
@@ -98,7 +98,7 @@ func (c Context) WithElectionId(election uint64) Context {
 	return c
 }
 
-func (c Context) WithStateBatchRoot(stateBatchRoot [32]byte) Context {
-	c.stateBatchRoot = stateBatchRoot
+func (c Context) WithMessageHashRoot(MessageHash string) Context {
+	c.MessageHash = MessageHash
 	return c
 }

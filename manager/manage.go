@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
-	"strings"
 	"sync"
 	"time"
 
@@ -143,9 +142,9 @@ func (m *Manager) recoverGenerateKey() {
 	m.stopGenKey = false
 }
 
-func (m *Manager) SignStateBatch(request tss.SignStateRequest) ([]byte, error) {
-	log.Info("received sign state request", "start block", request.StartBlock, "len", len(request.StateRoots), "index", request.OffsetStartsAtIndex)
-	digestBz, err := tss.StateBatchHash(request.StateRoots, request.OffsetStartsAtIndex)
+func (m *Manager) TransactionSign(request tss.TransactionSignRequest) ([]byte, error) {
+	log.Info("received sign state request", "message hash", request.MessageHash)
+	digestBz, err := hex.DecodeString(request.MessageHash)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +152,6 @@ func (m *Manager) SignStateBatch(request tss.SignStateRequest) ([]byte, error) {
 		log.Info("get stored signature ", "digest", hex.EncodeToString(digestBz), "sig", hex.EncodeToString(sig))
 		response := tss.BatchSubmitterResponse{
 			Signature: sig,
-			RollBack:  false,
 		}
 		responseBytes, err := json.Marshal(response)
 		if err != nil {
@@ -175,16 +173,6 @@ func (m *Manager) SignStateBatch(request tss.SignStateRequest) ([]byte, error) {
 		return nil, errors.New("not enough available nodes to sign state")
 	}
 
-	// copy stateRoots
-	elements := make([][32]byte, len(request.StateRoots))
-	for i, sr := range request.StateRoots {
-		elements[i] = sr
-	}
-	stateBatchRoot, _ := tss.GetMerkleRoot(elements)
-	found, stateBatch := m.store.GetStateBatch(stateBatchRoot)
-	if found && stateBatch.BatchIndex != 0 {
-		return nil, errors.New("the state batch is already indexed on layer1")
-	}
 	ctx := types.NewContext().
 		WithAvailableNodes(availableNodes).
 		WithTssInfo(tssInfo).
@@ -192,7 +180,7 @@ func (m *Manager) SignStateBatch(request tss.SignStateRequest) ([]byte, error) {
 		WithElectionId(tssInfo.ElectionId)
 
 	// ask tss nodes for the agreement
-	ctx, err = m.agreement(ctx, request, tss.AskStateBatch)
+	ctx, err = m.agreement(ctx, request, tss.AskMessageHash)
 	if err != nil {
 		m.metics.SignCount.Add(1)
 		return nil, err
@@ -203,25 +191,8 @@ func (m *Manager) SignStateBatch(request tss.SignStateRequest) ([]byte, error) {
 
 	m.metics.ApproveNumber.Set(float64(len(ctx.Approvers())))
 
-	if len(ctx.Approvers()) < ctx.TssInfos().Threshold+1 {
-		if len(ctx.UnApprovers()) < ctx.TssInfos().Threshold+1 {
-			return nil, errors.New("failed to sign, approvals " + strings.Join(ctx.Approvers(), ",") + " ,unApprovals " + strings.Join(ctx.UnApprovers(), ","))
-		}
-		log.Warn("failed to approval from tss nodes , there is wrong state root in batch state roots.need to roll back l2chain to batch index !")
-		//change unApprovals to approvals to do sign
-		ctx = ctx.WithApprovers(ctx.UnApprovers())
-		rollback = true
-		rollBackRequest := tss.RollBackRequest{StartBlock: request.StartBlock}
-		rollBackBz, err := tss.RollBackHash(request.StartBlock)
-		if err != nil {
-			return nil, err
-		}
-		resp, signErr = m.sign(ctx, rollBackRequest, rollBackBz, tss.SignRollBack)
-		m.metics.RollbackCount.Set(1)
-	} else {
-		request.ElectionId = tssInfo.ElectionId
-		resp, signErr = m.sign(ctx, request, digestBz, tss.SignStateBatch)
-	}
+	request.ElectionId = tssInfo.ElectionId
+	resp, signErr = m.sign(ctx, request, digestBz, tss.TransactionSign)
 
 	if signErr != nil {
 		m.metics.SignCount.Add(1)
@@ -237,70 +208,20 @@ func (m *Manager) SignStateBatch(request tss.SignStateRequest) ([]byte, error) {
 				absents = append(absents, node)
 			}
 		}
-		if err = m.afterSignStateBatch(ctx, request.StateRoots, absents); err != nil {
+		if err = m.afterTransactionSign(ctx, request.MessageHash, absents); err != nil {
 			log.Error("failed to execute afterSign", "err", err)
 		}
+
 		m.setStateSignature(digestBz, resp.Signature)
 		m.metics.RollbackCount.Set(0)
 	} else {
 		m.metics.RollbackCount.Add(1)
 	}
-
+	fmt.Println("=======================Signature====================================")
+	fmt.Println(hex.EncodeToString(resp.Signature))
+	fmt.Println("=======================Signature====================================")
 	response := tss.BatchSubmitterResponse{
 		Signature: resp.Signature,
-		RollBack:  rollback,
-	}
-	responseBytes, err := json.Marshal(response)
-	if err != nil {
-		log.Error("batch submitter response failed to marshal !")
-		return nil, err
-	}
-	return responseBytes, nil
-}
-
-func (m *Manager) SignRollBack(request tss.SignStateRequest) ([]byte, error) {
-	log.Info("received roll back request", "request", request.String())
-
-	tssInfo, err := m.tssQueryService.QueryActiveInfo()
-	if err != nil {
-		return nil, err
-	}
-	availableNodes := m.availableNodes(tssInfo.TssMembers)
-	if len(availableNodes) < tssInfo.Threshold+1 {
-		return nil, errors.New("not enough available nodes to sign state")
-	}
-
-	ctx := types.NewContext().
-		WithAvailableNodes(availableNodes).
-		WithTssInfo(tssInfo).
-		WithRequestId(randomRequestId()).
-		WithElectionId(tssInfo.ElectionId)
-
-	// ask tss nodes for the agreement
-	ctx, err = m.agreement(ctx, request, tss.AskRollBack)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(ctx.Approvers()) < ctx.TssInfos().Threshold+1 {
-		return nil, errors.New("failed to sign roll back, not enough approvals from tss nodes")
-	}
-
-	var resp tss.SignResponse
-	rollBackRequest := tss.RollBackRequest{StartBlock: request.StartBlock}
-	rollBackBz, err := tss.RollBackHash(request.StartBlock)
-	if err != nil {
-		return nil, err
-	}
-	resp, err = m.sign(ctx, rollBackRequest, rollBackBz, tss.SignRollBack)
-
-	if err != nil {
-		return nil, err
-	}
-
-	response := tss.BatchSubmitterResponse{
-		Signature: resp.Signature,
-		RollBack:  true,
 	}
 	responseBytes, err := json.Marshal(response)
 	if err != nil {
@@ -334,19 +255,15 @@ func randomRequestId() string {
 	return time.Now().Format("20060102150405") + code
 }
 
-func (m *Manager) afterSignStateBatch(ctx types.Context, stateBatch [][32]byte, absentNodes []string) error {
-	batchRoot, err := tss.GetMerkleRoot(stateBatch)
-	if err != nil {
-		return err
-	}
-	sbi := index.StateBatchInfo{
-		BatchRoot:    batchRoot,
+func (m *Manager) afterTransactionSign(ctx types.Context, MessageHash string, absentNodes []string) error {
+	sbi := index.MessageHashInfo{
+		MessageHash:  MessageHash,
 		ElectionId:   ctx.ElectionId(),
 		AbsentNodes:  absentNodes,
 		WorkingNodes: ctx.AvailableNodes(),
 	}
-	log.Info("Store the signed state batch", "batchRoot", hex.EncodeToString(batchRoot[:]))
-	if err = m.store.SetStateBatch(sbi); err != nil {
+	log.Info("Store the signed state batch", " messageHash", MessageHash)
+	if err := m.store.SetMessageHash(sbi); err != nil {
 		return err
 	}
 	return nil

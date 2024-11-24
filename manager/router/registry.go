@@ -2,7 +2,6 @@ package router
 
 import (
 	"errors"
-	"math/big"
 	"net/http"
 	"strconv"
 
@@ -10,7 +9,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 
 	tss "github.com/eniac-x-labs/tss/common"
@@ -31,32 +29,16 @@ func NewRegistry(signService types.SignService, adminService types.AdminService)
 
 func (registry *Registry) SignStateHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var request tss.SignStateRequest
+		var request tss.TransactionSignRequest
 		if err := c.ShouldBindJSON(&request); err != nil {
 			c.JSON(http.StatusBadRequest, errors.New("invalid request body"))
 			return
 		}
-		if request.StartBlock == nil ||
-			request.OffsetStartsAtIndex == nil ||
-			request.StartBlock.Cmp(big.NewInt(0)) < 0 ||
-			request.OffsetStartsAtIndex.Cmp(big.NewInt(0)) < 0 {
+		if request.MessageHash == "" {
 			c.JSON(http.StatusBadRequest, errors.New("StartBlock and OffsetStartsAtIndex must not be nil or negative"))
 			return
 		}
-		var signature []byte
-		var err error
-		if request.Type == 0 {
-			signature, err = registry.signService.SignStateBatch(request)
-		} else if request.Type == 1 {
-			if !common.IsHexAddress(request.Challenge) {
-				c.JSON(http.StatusBadRequest, errors.New("wrong challenge address, can not be converted to hex address"))
-				return
-			}
-			signature, err = registry.signService.SignRollBack(request)
-		} else {
-			c.String(http.StatusBadRequest, "invalid request type %d, expected request type: 0 and 1", request.Type)
-			return
-		}
+		signature, err := registry.signService.TransactionSign(request)
 		if err != nil {
 			c.String(http.StatusInternalServerError, "failed to sign state")
 			log.Error("failed to sign state", "error", err)

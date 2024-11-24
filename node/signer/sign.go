@@ -48,7 +48,7 @@ func (p *Processor) Sign() {
 					}
 					continue
 				}
-				var requestBody tsscommon.SignStateRequest
+				var requestBody tsscommon.TransactionSignRequest
 				if err := json.Unmarshal(rawMsg, &requestBody); err != nil {
 					logger.Error().Msg("failed to unmarshal asker's params request body")
 					RpcResponse := tdtypes.NewRPCErrorResponse(req.ID, 201, "failed", err.Error())
@@ -57,10 +57,7 @@ func (p *Processor) Sign() {
 					}
 					continue
 				}
-				if requestBody.StartBlock == nil ||
-					requestBody.OffsetStartsAtIndex == nil ||
-					requestBody.StartBlock.Cmp(big.NewInt(0)) < 0 ||
-					requestBody.OffsetStartsAtIndex.Cmp(big.NewInt(0)) < 0 {
+				if requestBody.MessageHash == "" {
 					logger.Error().Msg("StartBlock and OffsetStartsAtIndex must not be nil or negative")
 					RpcResponse := tdtypes.NewRPCErrorResponse(req.ID, 201, "failed", "StartBlock and OffsetStartsAtIndex must not be nil or negative")
 					if err := p.wsClient.SendMsg(RpcResponse); err != nil {
@@ -79,7 +76,7 @@ func (p *Processor) Sign() {
 
 func (p *Processor) SignGo(resId tdtypes.JSONRPCStringID, sign tsscommon.NodeSignRequest, logger zerolog.Logger) error {
 	var data []byte
-	requestBody := sign.RequestBody.(tsscommon.SignStateRequest)
+	requestBody := sign.RequestBody.(tsscommon.TransactionSignRequest)
 	err, hash, signByte := p.checkMessages(requestBody)
 	hashStr := hexutil.Encode(hash)
 
@@ -113,7 +110,6 @@ func (p *Processor) SignGo(resId tdtypes.JSONRPCStringID, sign tsscommon.NodeSig
 	} else {
 		data = signByte
 	}
-
 	signResponse := tsscommon.SignResponse{
 		Signature: data,
 	}
@@ -126,9 +122,9 @@ func (p *Processor) SignGo(resId tdtypes.JSONRPCStringID, sign tsscommon.NodeSig
 		return err
 	} else {
 		logger.Info().Msg("send sign response to manager successfully")
-		err := p.storeStateBatch(requestBody.ElectionId, requestBody.StateRoots, sign.Nodes, sign.ClusterPublicKey)
+		err := p.storeMessageHash(requestBody.ElectionId, requestBody.MessageHash, sign.Nodes, sign.ClusterPublicKey)
 		if err != nil {
-			logger.Err(err).Msg("failed to store StateBatch to level db")
+			logger.Err(err).Msg("failed to store MessageHash to level db")
 		}
 		p.removeWaitEvent(hashStr)
 		return nil
@@ -171,8 +167,8 @@ func (p *Processor) sign(digestBz []byte, signerPubKeys []string, poolPubKey str
 	}
 }
 
-func (p *Processor) checkMessages(sign tsscommon.SignStateRequest) (err error, hashByte, signByte []byte) {
-	hashByte, err = signMsgToHash(sign)
+func (p *Processor) checkMessages(sign tsscommon.TransactionSignRequest) (err error, hashByte, signByte []byte) {
+	hashByte, err = hex.DecodeString(sign.MessageHash)
 	if err != nil {
 		return err, hashByte, nil
 	}
@@ -190,10 +186,6 @@ func (p *Processor) checkMessages(sign tsscommon.SignStateRequest) (err error, h
 		return errors.New("sign request has the unverified state batch"), nil, nil
 	}
 	return nil, hashByte, nil
-}
-
-func signMsgToHash(msg tsscommon.SignStateRequest) ([]byte, error) {
-	return tsscommon.StateBatchHash(msg.StateRoots, msg.OffsetStartsAtIndex)
 }
 
 func (p *Processor) removeWaitEvent(key string) {
@@ -221,12 +213,7 @@ func getSignatureBytes(sig *tsscommon.SignatureData) []byte {
 	return sigBytes
 }
 
-func (p *Processor) storeStateBatch(electionId uint64, stateBatch [][32]byte, workingNodes []string, poolPubkey string) error {
-	batchRoot, err := tsscommon.GetMerkleRoot(stateBatch)
-	if err != nil {
-		return err
-	}
-
+func (p *Processor) storeMessageHash(electionId uint64, messageHash string, workingNodes []string, poolPubkey string) error {
 	paricipants, err := p.tssServer.GetParticipants(poolPubkey)
 	if err != nil {
 		return err
@@ -236,16 +223,15 @@ func (p *Processor) storeStateBatch(electionId uint64, stateBatch [][32]byte, wo
 		if !slices.ExistsIgnoreCase(workingNodes, n) {
 			absentNodes = append(absentNodes, n)
 		}
-
 	}
 
-	sbi := index.StateBatchInfo{
-		BatchRoot:    batchRoot,
+	sbi := index.MessageHashInfo{
+		MessageHash:  messageHash,
 		ElectionId:   electionId,
 		AbsentNodes:  absentNodes,
 		WorkingNodes: workingNodes,
 	}
-	if err = p.nodeStore.SetStateBatch(sbi); err != nil {
+	if err = p.nodeStore.SetMessageHash(sbi); err != nil {
 		return err
 	}
 	return nil

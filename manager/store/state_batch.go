@@ -1,37 +1,39 @@
 package store
 
 import (
+	"encoding/hex"
 	"encoding/json"
 
 	"github.com/eniac-x-labs/tss/index"
 )
 
-func (s *Storage) SetStateBatch(info index.StateBatchInfo) error {
+func (s *Storage) SetMessageHash(info index.MessageHashInfo) error {
 	bz, err := json.Marshal(info)
 	if err != nil {
 		return err
 	}
-	return s.db.Put(getStateBatchKey(info.BatchRoot), bz, nil)
+	msgByte, _ := hex.DecodeString(info.MessageHash)
+	return s.db.Put(msgByte, bz, nil)
 }
 
-func (s *Storage) GetStateBatch(root [32]byte) (bool, index.StateBatchInfo) {
-	bz, err := s.db.Get(getStateBatchKey(root), nil)
+func (s *Storage) GetMessageHash(root [32]byte) (bool, index.MessageHashInfo) {
+	bz, err := s.db.Get(getMessageHashKey(root), nil)
 	if err != nil {
-		return handleError2(index.StateBatchInfo{}, err)
+		return handleError2(index.MessageHashInfo{}, err)
 	}
-	var sbi index.StateBatchInfo
+	var sbi index.MessageHashInfo
 	if err = json.Unmarshal(bz, &sbi); err != nil {
-		return false, index.StateBatchInfo{}
+		return false, index.MessageHashInfo{}
 	}
 	return true, sbi
 }
 
-func (s *Storage) IndexStateBatch(index uint64, root [32]byte) error {
-	return s.db.Put(getIndexStateBatchKey(index), root[:], nil)
+func (s *Storage) IndexMessageHash(index uint64, root [32]byte) error {
+	return s.db.Put(getIndexMessageHashKey(index), root[:], nil)
 }
 
-func (s *Storage) GetIndexStateBatch(index uint64) (bool, [32]byte) {
-	bz, err := s.db.Get(getIndexStateBatchKey(index), nil)
+func (s *Storage) GetIndexMessageHash(index uint64) (bool, [32]byte) {
+	bz, err := s.db.Get(getIndexMessageHashKey(index), nil)
 	if err != nil {
 		return handleError2([32]byte{}, err)
 	}

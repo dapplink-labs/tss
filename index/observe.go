@@ -46,15 +46,15 @@ func (o Indexer) Start() {
 	if scannedHeight < o.l1StartBlockNumber {
 		scannedHeight = o.l1StartBlockNumber
 	}
-	log.Info("start to observe StateBatchAppended event", "start_height", scannedHeight)
-	go o.ObserveStateBatchAppended(scannedHeight)
+	log.Info("start to observe MessageHashAppended event", "start_height", scannedHeight)
+	go o.ObserveMessageHashAppended(scannedHeight)
 }
 
 func (o Indexer) Stop() {
 	close(o.stopChan)
 }
 
-func (o Indexer) ObserveStateBatchAppended(scannedHeight uint64) {
+func (o Indexer) ObserveMessageHashAppended(scannedHeight uint64) {
 	queryTicker := time.NewTicker(o.taskInterval)
 	for {
 		func() {

@@ -28,11 +28,11 @@ func (p *Processor) ProcessMessage() {
 			case rpcReq := <-reqChan:
 				reqId := rpcReq.ID.(tdtypes.JSONRPCStringID).String()
 				logger.Info().Str("reqId", reqId).Msgf("receive request method : %s", rpcReq.Method)
-				if rpcReq.Method == common.AskStateBatch.String() {
+				if rpcReq.Method == common.AskMessageHash.String() {
 					if err := p.writeChan(p.askRequestChan, rpcReq); err != nil {
 						logger.Err(err).Msg("failed to write msg to ask channel,channel blocked ")
 					}
-				} else if rpcReq.Method == common.SignStateBatch.String() {
+				} else if rpcReq.Method == common.TransactionSign.String() {
 					if err := p.writeChan(p.signRequestChan, rpcReq); err != nil {
 						logger.Err(err).Msg("failed to write msg to sign channel,channel blocked ")
 					}
@@ -68,9 +68,9 @@ func (p *Processor) ProcessMessage() {
 func (p *Processor) writeChan(cache chan tdtypes.RPCRequest, msg tdtypes.RPCRequest) error {
 	select {
 	case cache <- msg:
-		if msg.Method == common.AskStateBatch.String() {
+		if msg.Method == common.AskMessageHash.String() {
 			p.metrics.AskChannelCount.Set(float64(len(cache)))
-		} else if msg.Method == common.SignStateBatch.String() {
+		} else if msg.Method == common.TransactionSign.String() {
 			p.metrics.SignChannelCount.Set(float64(len(cache)))
 		}
 		return nil

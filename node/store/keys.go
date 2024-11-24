@@ -8,8 +8,8 @@ import (
 
 var (
 	CPKDataKeyPrefix                 = []byte{0x01}
-	StateBatchKeyPrefix              = []byte{0x02}
-	IndexStateBatchKeyPrefix         = []byte{0x03}
+	MessageHashKeyPrefix             = []byte{0x02}
+	IndexMessageHashKeyPrefix        = []byte{0x03}
 	SigningInfoKeyPrefix             = []byte{0x04}
 	NodeMissedBatchBitArrayKeyPrefix = []byte{0x05}
 	SlashingInfoKeyPrefix            = []byte{0x06}
@@ -19,14 +19,14 @@ var (
 	TssActiveMemberKeyPrefix         = []byte{0x10}
 )
 
-func getStateBatchKey(batchRoot [32]byte) []byte {
-	return append(StateBatchKeyPrefix, batchRoot[:]...)
+func getMessageHashKey(batchRoot [32]byte) []byte {
+	return append(MessageHashKeyPrefix, batchRoot[:]...)
 }
 
-func getIndexStateBatchKey(index uint64) []byte {
+func getIndexMessageHashKey(index uint64) []byte {
 	indexBz := make([]byte, 8)
 	binary.BigEndian.PutUint64(indexBz, index)
-	return append(IndexStateBatchKeyPrefix, indexBz...)
+	return append(IndexMessageHashKeyPrefix, indexBz...)
 }
 
 func getSigningInfoKey(address common.Address) []byte {

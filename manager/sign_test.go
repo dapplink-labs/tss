@@ -39,7 +39,7 @@ func TestSign(t *testing.T) {
 		return nil
 	}
 	manager, request := setup(afterMsgSent, nil)
-	signResp, err := manager.sign(ctx, request, digest, tss.SignStateBatch)
+	signResp, err := manager.sign(ctx, request, digest, tss.TransactionSign)
 	require.NoError(t, err)
 	require.EqualValues(t, signature, signResp.Signature)
 
@@ -57,7 +57,7 @@ func TestSign(t *testing.T) {
 		return nil
 	}
 	manager, request = setup(afterMsgSent, nil)
-	signResp, err = manager.sign(ctx, request, digest, tss.SignStateBatch)
+	signResp, err = manager.sign(ctx, request, digest, tss.TransactionSign)
 	require.NoError(t, err)
 	require.EqualValues(t, signature, signResp.Signature)
 }
@@ -79,7 +79,7 @@ func TestErrorSend(t *testing.T) {
 		return nil
 	}
 	manager, request := setup(afterMsgSent, nil)
-	signResp, err := manager.sign(ctx, request, digest, tss.SignStateBatch)
+	signResp, err := manager.sign(ctx, request, digest, tss.TransactionSign)
 	require.Nil(t, signResp.Signature)
 	require.NotNil(t, err)
 	require.ErrorContains(t, err, "failed to generate signature")
@@ -109,7 +109,7 @@ func TestWrongSignature(t *testing.T) {
 		return nil
 	}
 	manager, request := setup(afterMsgSent, nil)
-	signResp, err := manager.sign(ctx, request, digest, tss.SignStateBatch)
+	signResp, err := manager.sign(ctx, request, digest, tss.TransactionSign)
 	require.Nil(t, signResp.Signature)
 	require.NotNil(t, err)
 	require.ErrorContains(t, err, "failed to generate signature")
@@ -127,7 +127,7 @@ func TestSignTimeout(t *testing.T) {
 	}
 	manager, request := setup(afterMsgSent, nil)
 	before := time.Now()
-	signResp, err := manager.sign(ctx, request, nil, tss.SignStateBatch)
+	signResp, err := manager.sign(ctx, request, nil, tss.TransactionSign)
 	require.Nil(t, signResp.Signature)
 	require.NotNil(t, err)
 	require.ErrorContains(t, err, "failed to generate signature")
@@ -155,7 +155,7 @@ func TestSignTimeout(t *testing.T) {
 		ClusterPubKey: publicKey,
 	})
 	before = time.Now()
-	signResp, err = manager.sign(ctx, request, digest, tss.SignStateBatch)
+	signResp, err = manager.sign(ctx, request, digest, tss.TransactionSign)
 	require.NoError(t, err)
 	require.EqualValues(t, signature, signResp.Signature)
 	cost = time.Now().Sub(before)
@@ -187,7 +187,7 @@ func TestCulprits(t *testing.T) {
 		return nil
 	}
 	manager, request := setup(afterMsgSent, nil)
-	signResp, err := manager.sign(ctx, request, nil, tss.SignStateBatch)
+	signResp, err := manager.sign(ctx, request, nil, tss.TransactionSign)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "failed to generate signature")
 	require.Nil(t, signResp.Signature)
@@ -199,7 +199,7 @@ func TestCulprits(t *testing.T) {
 			Threshold: 2,
 		})
 
-	signResp, err = manager.sign(ctx, request, nil, tss.SignStateBatch)
+	signResp, err = manager.sign(ctx, request, nil, tss.TransactionSign)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "failed to generate signature")
 	require.Nil(t, signResp.Signature)

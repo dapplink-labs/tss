@@ -1,18 +1,18 @@
 package index
 
-type StateBatchInfo struct {
-	BatchRoot    [32]byte `json:"batch_root"`
+type MessageHashInfo struct {
+	MessageHash  string   `json:"message_hash"`
 	ElectionId   uint64   `json:"election_id"`
 	AbsentNodes  []string `json:"absent_nodes"`
 	WorkingNodes []string `json:"working_nodes"`
 	BatchIndex   uint64   `json:"batch_index"`
 }
 
-type StateBatchStore interface {
-	SetStateBatch(StateBatchInfo) error
-	GetStateBatch([32]byte) (bool, StateBatchInfo)
-	IndexStateBatch(uint64, [32]byte) error
-	GetIndexStateBatch(index uint64) (bool, [32]byte)
+type MessageHashStore interface {
+	SetMessageHash(MessageHashInfo) error
+	GetMessageHash([32]byte) (bool, MessageHashInfo)
+	IndexMessageHash(uint64, [32]byte) error
+	GetIndexMessageHash(index uint64) (bool, [32]byte)
 }
 
 type ScanHeightStore interface {
@@ -21,6 +21,6 @@ type ScanHeightStore interface {
 }
 
 type IndexerStore interface {
-	StateBatchStore
+	MessageHashStore
 	ScanHeightStore
 }

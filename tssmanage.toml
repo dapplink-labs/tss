@@ -1,0 +1,21 @@
+l1_url = "https://eth-holesky.g.alchemy.com/v2/BvSZ5ZfdIwB-5SDXMz8PfGcbICYQqwrl"
+time_task_interval = "10s"
+l1_receipt_confirm_timeout = "30s"
+l1_confirm_blocks = "1"
+tss_group_contract_address = "0xcd3fc9E7d3454aEAcfaaf6cbe802E86BEd87563a"
+timed_task_interval = "10s"
+l1_start_block_number = 2808260
+miss_signed_number = 5
+
+[manager]
+private_key = ""
+ws_addr = "tcp://127.0.0.1:8081"
+http_addr = "127.0.0.1:8080"
+db_dir = "/Users/guoshijiang/.tssmanager/db"
+keygen_timeout = "120s"
+cpk_confirm_timeout = "2h"
+ask_timeout = "60s"
+sign_timeout = "60s"
+
+
+

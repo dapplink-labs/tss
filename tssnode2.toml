@@ -1,0 +1,25 @@
+l1_url = "https://eth-holesky.g.alchemy.com/v2/BvSZ5ZfdIwB-5SDXMz8PfGcbICYQqwrl"
+time_task_interval = "10s"
+l1_receipt_confirm_timeout = "30s"
+l1_confirm_blocks = "1"
+tss_group_contract_address = "0xcd3fc9E7d3454aEAcfaaf6cbe802E86BEd87563a"
+timed_task_interval = "10s"
+l1_start_block_number = 2808260
+miss_signed_number = 5
+
+[node]
+db_dir = "/Users/guoshijiang/.tssnode2/db"
+base_dir = "/Users/guoshijiang/.tssnode2"
+ws_addr = "tcp://127.0.0.1:8081"
+http_addr = ":8084"
+l2_eth_rpc = "http://bitnetwork-l2geth"
+pre_param_file = ""
+p2p_port = "8003"
+bootstrap_peers="/ip4/127.0.0.1/tcp/8001/p2p/16Uiu2HAmFLzPFGjw46Ljr1KqVdDmRNGYQE2o3MqZATpKJMbg9Kg8,/ip4/127.0.0.1/tcp/8001/p2p/16Uiu2HAmFLzPFGjw46Ljr1KqVdDmRNGYQE2o3MqZATpKJMbg9Kg8,/ip4/127.0.0.1/tcp/8003/p2p/16Uiu2HAmVVnQsZKtzeyyoPPdYqKQK5YQ2G83iyPC4JC2pPVFTYry"
+external_ip = "127.0.0.1"
+join_party_timeout = "60s"
+key_gen_timeout = "60s"
+key_sign_timeout = "60s"
+pre_param_timeout = "5m0s"
+private_key = ""
+gas_limit_scaler = 15
